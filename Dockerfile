@@ -1,4 +1,4 @@
-# Use the official Ruby image with the specified version
+# Uses the official Ruby image with the specified version
 FROM ruby:3.2.0
 
 # Install necessary dependencies
