@@ -4,18 +4,18 @@ development:
   pool: 5
   adapter: postgresql
   host: localhost
-  username: postgres
+  username: huzaifa
   password: 1234
-  database: memee-dev
+  database: memee_dev
 
 test:
   encoding: unicode
   pool: 5
   adapter: postgresql
   host: localhost
-  username: postgres
+  username: huzaifa
   password: 1234
-  database: memee-test
+  database: memee_test
 
 production:
   encoding: unicode
