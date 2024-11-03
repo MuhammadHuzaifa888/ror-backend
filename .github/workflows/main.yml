@@ -1,4 +1,4 @@
-name: Build, Setup DB and Migrate
+name: Build, Setup DB, and Migrate
 
 on:
   push:
@@ -21,23 +21,31 @@ jobs:
 
     - name: Build Docker image
       run: |
-        sudo docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/ror:latest .
+        docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/ror:latest .
 
     - name: Remove existing container (if any)
       run: |
-        sudo docker stop ror-dep || true
-        sudo docker rm ror-dep || true
+        docker stop ror-dep || true
+        docker rm ror-dep || true
 
     - name: Run Docker container
       run: |
-        sudo docker run -d --name ror-dep -p 8000:3000 ${{ secrets.DOCKERHUB_USERNAME }}/ror:latest
+        docker run -d --name ror-dep -p 8000:3000 ${{ secrets.DOCKERHUB_USERNAME }}/ror:latest
+
+    - name: Wait for PostgreSQL to start
+      run: |
+        sleep 10  # Wait for PostgreSQL to fully start up in the container
 
     - name: Set up PostgreSQL user and databases
       run: |
-        sudo docker exec ror-dep psql -U postgres -c "CREATE USER huzaifa WITH PASSWORD '1234';"
-        sudo docker exec ror-dep psql -U postgres -c "CREATE DATABASE memee_dev OWNER huzaifa;"
-        sudo docker exec ror-dep psql -U postgres -c "CREATE DATABASE memee_test OWNER huzaifa;"
+        docker exec -i ror-dep psql -U postgres -c "CREATE USER huzaifa WITH PASSWORD '1234';"
+        docker exec -i ror-dep psql -U postgres -c "CREATE DATABASE memee_dev OWNER huzaifa;"
+        docker exec -i ror-dep psql -U postgres -c "CREATE DATABASE memee_test OWNER huzaifa;"
 
     - name: Run Rails database migration
       run: |
-        sudo docker exec ror-dep bundle exec rails db:migrate
+        docker exec -i ror-dep bundle exec rails db:migrate
+
+    - name: Push Docker image to Docker Hub
+      run: |
+        docker push ${{ secrets.DOCKERHUB_USERNAME }}/ror:latest
