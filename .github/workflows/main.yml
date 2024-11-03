@@ -43,9 +43,9 @@ jobs:
 
     - name: Set up PostgreSQL user and databases
       run: |
-        docker exec -i ror-dep psql -U postgres -c "CREATE USER huzaifa WITH PASSWORD '1234';"
-        docker exec -i ror-dep psql -U postgres -c "CREATE DATABASE memee_dev OWNER huzaifa;"
-        docker exec -i ror-dep psql -U postgres -c "CREATE DATABASE memee_test OWNER huzaifa;"
+        docker exec -i ror-dep bash -c "su - postgres -c \"psql -c 'CREATE USER huzaifa WITH PASSWORD '\''1234'\'';'\""
+        docker exec -i ror-dep bash -c "su - postgres -c \"psql -c 'CREATE DATABASE memee_dev OWNER huzaifa;'\""
+        docker exec -i ror-dep bash -c "su - postgres -c \"psql -c 'CREATE DATABASE memee_test OWNER huzaifa;'\""
 
     - name: Run Rails database migration
       run: |
