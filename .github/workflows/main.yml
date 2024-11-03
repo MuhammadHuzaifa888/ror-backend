@@ -32,9 +32,14 @@ jobs:
       run: |
         docker run -d --name ror-dep -p 8000:3000 ${{ secrets.DOCKERHUB_USERNAME }}/ror:latest
 
-    - name: Wait for PostgreSQL to start
+    - name: Install PostgreSQL inside container
       run: |
-        sleep 10  # Wait for PostgreSQL to fully start up in the container
+        docker exec -i ror-dep apt-get update
+        docker exec -i ror-dep apt-get install -y postgresql postgresql-contrib
+
+    - name: Start PostgreSQL service in container
+      run: |
+        docker exec -i ror-dep service postgresql start
 
     - name: Set up PostgreSQL user and databases
       run: |
