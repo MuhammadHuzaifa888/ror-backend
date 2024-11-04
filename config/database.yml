@@ -3,7 +3,7 @@ development:
   encoding: unicode
   pool: 5
   adapter: postgresql
-  host: localhost
+  host: 127.0.0.1
   username: huzaifa
   password: 1234
   database: memee_dev
@@ -12,7 +12,7 @@ test:
   encoding: unicode
   pool: 5
   adapter: postgresql
-  host: localhost
+  host: 127.0.0.1
   username: huzaifa
   password: 1234
   database: memee_test
