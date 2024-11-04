@@ -1,4 +1,4 @@
-name: Build, Setup DB, Migrate, and Deploy
+name: Build, Push, and Deploy
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  build-and-setup-db:
+  build_and_push:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,49 +19,15 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    - name: Build Docker image
+    - name: Build and push Docker image
       run: |
         docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/ror:latest .
-
-    - name: Remove existing container (if any)
-      run: |
-        docker stop ror-dep || true
-        docker rm ror-dep || true
-
-    - name: Run Docker container
-      run: |
-        docker run -d --name ror-dep -p 8000:3000 ${{ secrets.DOCKERHUB_USERNAME }}/ror:latest
-
-    - name: Install PostgreSQL inside container
-      run: |
-        docker exec -i ror-dep apt-get update
-        docker exec -i ror-dep apt-get install -y postgresql postgresql-contrib
-
-    - name: Start PostgreSQL service in container
-      run: |
-        docker exec -i ror-dep service postgresql start
-
-    - name: Wait for PostgreSQL to start
-      run: |
-        sleep 10  
-
-    - name: Set up PostgreSQL user and databases
-      run: |
-        docker exec -i ror-dep bash -c "su - postgres -c \"psql -c 'CREATE USER huzaifa WITH PASSWORD '\''1234'\'';'\""
-        docker exec -i ror-dep bash -c "su - postgres -c \"psql -c 'CREATE DATABASE memee_dev OWNER huzaifa;'\""
-        docker exec -i ror-dep bash -c "su - postgres -c \"psql -c 'CREATE DATABASE memee_test OWNER huzaifa;'\""
-
-    - name: Run Rails database migration
-      run: |
-        docker exec -i ror-dep bundle exec rails db:migrate
-
-    - name: Push Docker image to Docker Hub
-      run: |
         docker push ${{ secrets.DOCKERHUB_USERNAME }}/ror:latest
 
   deploy:
     runs-on: self-hosted
-    needs: build-and-setup-db  # Ensures this job only runs after the previous job completes
+    needs: build_and_push
+
     steps:
     - name: Log in to Docker Hub
       uses: docker/login-action@v2
