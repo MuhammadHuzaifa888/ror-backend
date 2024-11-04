@@ -25,9 +25,6 @@ RUN service postgresql start && \
     su - postgres -c "psql -c \"CREATE DATABASE $POSTGRES_DB_TEST OWNER $POSTGRES_USER;\"" && \
     service postgresql stop
 
-# Enable and start Redis and PostgreSQL as background services
-RUN echo "alias start_services='service postgresql start && service redis-server start'" >> ~/.bashrc
-
 # Set working directory
 WORKDIR /myapp
 
@@ -42,11 +39,13 @@ COPY . /myapp
 # Precompile assets (if using Rails with assets)
 RUN bundle exec rake assets:precompile
 
-# Run Rails migrations during build
-RUN start_services && bundle exec rails db:migrate && service postgresql stop && service redis-server stop
+# Start services, run Rails migrations, then stop services
+RUN service postgresql start && service redis-server start && \
+    bundle exec rails db:migrate && \
+    service postgresql stop && service redis-server stop
 
 # Expose the Rails app port
 EXPOSE 3000
 
 # Start PostgreSQL, Redis, and Rails server
-CMD ["bash", "-c", "service postgresql start && service redis-server start && rails server -b 0.0.0.0"]
+CMD service postgresql start && service redis-server start && rails server -b 0.0.0.0
