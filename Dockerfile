@@ -1,16 +1,39 @@
-FROM ruby:3.2.0
+# Stage 1: Builder
+FROM ruby:3.2.0 AS builder
 
-# Install necessary dependencies
+# Install build dependencies
 RUN apt-get update -qq && apt-get install -y \
-    nodejs \
-    postgresql \
-    postgresql-contrib \
+    build-essential \
     libssl-dev \
     libreadline-dev \
     zlib1g-dev \
-    build-essential \
     curl \
-    redis-server
+    nodejs && \
+    rm -rf /var/lib/apt/lists/*  # Remove package manager cache to reduce image size
+
+# Set working directory
+WORKDIR /myapp
+
+# Copy Gemfile and install gems
+COPY Gemfile Gemfile.lock ./
+RUN gem install bundler && bundle install
+
+# Clean up gem cache after installation
+RUN rm -rf /usr/local/bundle/cache
+
+# Copy application code and precompile assets
+COPY . .
+RUN bundle exec rake assets:precompile
+
+# Stage 2: Final Runtime
+FROM ruby:3.2.0-slim AS runtime
+
+# Install only runtime dependencies for the final image
+RUN apt-get update -qq && apt-get install -y \
+    nodejs \
+    postgresql-client \
+    redis-server && \
+    rm -rf /var/lib/apt/lists/*  # Clean up cache again to keep image small
 
 # Set environment variables for PostgreSQL
 ENV POSTGRES_USER=huzaifa \
@@ -18,34 +41,20 @@ ENV POSTGRES_USER=huzaifa \
     POSTGRES_DB_DEV=memee_dev \
     POSTGRES_DB_TEST=memee_test
 
-# Set up PostgreSQL user and databases
-RUN service postgresql start && \
-    su - postgres -c "psql -c \"CREATE USER $POSTGRES_USER WITH PASSWORD '$POSTGRES_PASSWORD';\"" && \
-    su - postgres -c "psql -c \"CREATE DATABASE $POSTGRES_DB_DEV OWNER $POSTGRES_USER;\"" && \
-    su - postgres -c "psql -c \"CREATE DATABASE $POSTGRES_DB_TEST OWNER $POSTGRES_USER;\"" && \
-    service postgresql stop
-
 # Set working directory
 WORKDIR /myapp
 
-# Copy Gemfile and install gems
-COPY Gemfile /myapp/Gemfile
-COPY Gemfile.lock /myapp/Gemfile.lock
-RUN gem install bundler && bundle install
-
-# Copy application code
-COPY . /myapp
-
-# Precompile assets (if using Rails with assets)
-RUN bundle exec rake assets:precompile
-
-# Start services, run Rails migrations, then stop services
-RUN service postgresql start && service redis-server start && \
-    bundle exec rails db:migrate && \
-    service postgresql stop && service redis-server stop
+# Copy necessary files from the builder stage
+COPY --from=builder /myapp /myapp
 
 # Expose the Rails app port
 EXPOSE 3000
 
-# Start PostgreSQL, Redis, and Rails server
-CMD service postgresql start && service redis-server start && rails server -b 0.0.0.0
+# Initialize databases on container start and start services
+CMD service redis-server start && \
+    (service postgresql start && \
+    su - postgres -c "psql -c \"CREATE USER $POSTGRES_USER WITH PASSWORD '$POSTGRES_PASSWORD';\"" && \
+    su - postgres -c "psql -c \"CREATE DATABASE $POSTGRES_DB_DEV OWNER $POSTGRES_USER;\"" && \
+    su - postgres -c "psql -c \"CREATE DATABASE $POSTGRES_DB_TEST OWNER $POSTGRES_USER;\"" && \
+    bundle exec rails db:migrate) && \
+    rails server -b 0.0.0.0
